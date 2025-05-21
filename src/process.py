@@ -137,9 +137,27 @@ def Request(modele_rkllm, modelfile, custom_request=None):
             else:
                 prompt = messages
 
-            for i in range(1, len(prompt)):
-                if prompt[i]["role"] == prompt[i - 1]["role"]:
-                    raise ValueError("Roles must alternate between 'user' and 'assistant'.")
+            # Ensure conversation roles alternate: user/assistant/user/assistant...
+            fixed_prompt = []
+            prev_role = None
+            for msg in prompt:
+                if prev_role == msg["role"]:
+                    # Insert a dummy assistant/user message if roles repeat (prevents template error)
+                    if prev_role == "user":
+                        # Insert an empty assistant message
+                        fixed_prompt.append({"role": "assistant", "content": ""})
+                        logger.warning("Inserted dummy assistant message to fix role alternation.")
+                    else:
+                        # Insert an empty user message
+                        fixed_prompt.append({"role": "user", "content": ""})
+                        logger.warning("Inserted dummy user message to fix role alternation.")
+                fixed_prompt.append(msg)
+                prev_role = msg["role"]
+            # If conversation does not start with user, insert dummy user message
+            if fixed_prompt and fixed_prompt[0]["role"] != "user":
+                fixed_prompt = [{"role": "user", "content": ""}] + fixed_prompt
+                logger.warning("Inserted dummy user message at start to fix role alternation.")
+            prompt = fixed_prompt
 
             # Set up chat template
             prompt = tokenizer.apply_chat_template(prompt, tokenize=True, add_generation_prompt=True)
