@@ -129,8 +129,12 @@ def Request(modele_rkllm, modelfile, custom_request=None):
 
             # Setup tokenizer
             tokenizer = load_tokenizer(modelfile, variables.model_id)
-
-            supports_system_role = "raise_exception('System role not supported')" not in tokenizer.chat_template
+            if tokenizer is None:
+                raise RuntimeError("Failed to load tokenizer. Please check your model_id and tokenizer path.")
+            if getattr(tokenizer, "chat_template", None) is not None:
+                supports_system_role = "raise_exception('System role not supported')" not in tokenizer.chat_template
+            else:
+                supports_system_role = False
 
             if variables.system and supports_system_role:
                 prompt = [{"role": "system", "content": variables.system}] + messages
